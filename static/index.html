@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bengaluru Local Delivery Route Planner</title>
+    <!-- Light-theme clean stylesheet -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <!-- Leaflet CSS for interactive map support -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+</head>
+<body>
+
+    <!-- Header / Nav -->
+    <header class="app-header">
+        <div class="brand-section">
+            <div class="brand-icon">🚚</div>
+            <div class="brand-text">
+                <h1>Bengaluru Logistics Dispatch</h1>
+                <p>Local Route Optimization & Emergency Dispatch System</p>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <div class="status-pill" id="dbStatusBadge" title="Database Connection Status">
+                <span class="status-indicator"></span> Checking DB...
+            </div>
+            <div class="status-pill" id="trafficStatusBadge" title="Live Traffic Delays">
+                <span class="status-indicator"></span> Delays: Loading...
+            </div>
+            <a href="/docs" target="_blank" class="btn-secondary-link">Swagger API Docs</a>
+            <button class="btn-sos" id="btnOpenSos">
+                <span>🚨</span> EMERGENCY SOS
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-container">
+
+        <!-- Top Split: Route Controls & Dual Map Views -->
+        <div class="dashboard-split">
+            
+            <!-- Left Column: Controls & Result Details -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+
+                <!-- Route Configuration Card -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>Route Planning</span>
+                        <button type="button" class="btn-swap" id="btnSwapLocations" title="Swap Origin and Destination">
+                            ⇄ Swap Points
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="selectOrigin">Starting Point / Hub</label>
+                        <select id="selectOrigin" class="form-select">
+                            <option value="">Loading Bengaluru hubs...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="selectDestination">Destination Point / Hub</label>
+                        <select id="selectDestination" class="form-select">
+                            <option value="">Loading Bengaluru hubs...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Optimization Criteria</label>
+                        <div class="mode-toggle-group">
+                            <button type="button" class="mode-btn active" data-mode="time">
+                                ⚡ Fastest Travel Time
+                            </button>
+                            <button type="button" class="mode-btn" data-mode="distance">
+                                📏 Shortest Distance
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="button" id="btnCalculateRoute" class="btn-primary">
+                        Find Optimal Route
+                    </button>
+
+                    <!-- Route Results Details (Revealed after search) -->
+                    <div id="resultsContainer" class="results-container">
+                        <div id="routeAlertBanner" class="alert-banner info"></div>
+
+                        <div id="statsRow" class="stat-pills-row">
+                            <div class="stat-box">
+                                <div class="stat-val" id="statDistance">--</div>
+                                <div class="stat-label">Total Distance</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-val" id="statTime">--</div>
+                                <div class="stat-label">Estimated Time</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-val" id="statDelay">--</div>
+                                <div class="stat-label">Traffic Delay</div>
+                            </div>
+                        </div>
+
+                        <label class="form-label">Step-by-Step Road Itinerary</label>
+                        <div id="itineraryList" class="itinerary-list"></div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Traffic Delays Panel (from CSV) -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>Live Traffic Delay Factors (CSV)</span>
+                        <button type="button" id="btnReloadTraffic" class="btn-secondary-link" style="padding: 4px 8px; font-size: 11px;">
+                            🔄 Reload CSV
+                        </button>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+                        Loaded directly from <code>data/traffic_delays.csv</code>. Edit the file anytime; changes take effect immediately on next query.
+                    </p>
+                    <div style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                        <table class="traffic-table">
+                            <thead>
+                                <tr>
+                                    <th>Road Corridor</th>
+                                    <th>Direction</th>
+                                    <th>Delay</th>
+                                    <th>Condition</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trafficTableBody">
+                                <tr><td colspan="4" style="text-align: center; padding: 12px;">Loading traffic factors...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Map Views -->
+            <div class="card map-card">
+                <div class="map-toolbar">
+                    <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">
+                        Bengaluru Road Network & Dispatch Map
+                    </div>
+                    <div class="map-view-tabs">
+                        <button type="button" class="tab-btn active" data-view="image">🖼️ Generated Map Image</button>
+                        <button type="button" class="tab-btn" data-view="leaflet">🗺️ Interactive Map</button>
+                    </div>
+                </div>
+
+                <div class="map-display-area">
+                    <!-- 1. Server-Generated Map Image -->
+                    <img id="generatedMapImage" class="generated-image-view" alt="Bengaluru Road Network Route Map" src="/api/route/map-image" />
+                    
+                    <!-- 2. Interactive Leaflet Map -->
+                    <div id="leafletMap"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Section: Past Route Search History -->
+        <div class="card">
+            <div class="card-title">
+                <span>Recent Route Searches & Emergency Dispatches (Database History)</span>
+                <button type="button" id="btnClearHistory" class="btn-secondary-link" style="padding: 4px 10px; font-size: 11px; color: #dc2626;">
+                    Clear History
+                </button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Route Corridor</th>
+                            <th>Category</th>
+                            <th>Distance</th>
+                            <th>ETA / Mode</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr><td colspan="6" style="text-align: center; padding: 16px;">Loading search history...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Emergency SOS Modal -->
+    <div id="sosModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span>🚨</span> EMERGENCY DISPATCH
+                </div>
+                <button type="button" class="btn-close-modal" id="btnCloseSosModal">&times;</button>
+            </div>
+
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+                Instant priority emergency dispatch. The system will compute the fastest corridor to the nearest medical trauma hospital or police station from your location.
+            </p>
+
+            <div class="form-group">
+                <label class="form-label" for="sosLocationSelect">Where are you currently located?</label>
+                <select id="sosLocationSelect" class="form-select">
+                    <option value="">Loading locations...</option>
+                </select>
+            </div>
+
+            <label class="form-label">Select Required Emergency Responder</label>
+            <div class="service-choice-cards">
+                <div class="choice-card selected" data-type="hospital">
+                    <div class="choice-icon">🏥</div>
+                    <div class="choice-title">Nearest Hospital</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Medical & Trauma Care</div>
+                </div>
+                <div class="choice-card" data-type="police_station">
+                    <div class="choice-icon">🚓</div>
+                    <div class="choice-title">Nearest Police</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Security & Law Enforcement</div>
+                </div>
+            </div>
+
+            <button type="button" id="btnDispatchSos" class="btn-primary" style="background-color: var(--emergency-red);">
+                Dispatch Emergency Route
+            </button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Application JS -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
