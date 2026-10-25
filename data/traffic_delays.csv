@@ -1,0 +1,15 @@
+road_name,from_location,to_location,delay_minutes,traffic_factor,condition,notes
+Silk Board Junction,Koramangala,HSR Layout,25.0,1.8,Heavy Congestion,Peak hour bottleneck
+Marathahalli ORR,Indiranagar,Whitefield,35.0,2.2,Severe Gridlock,Road repair and tech corridor traffic
+Tin Factory Junction,Indiranagar,Whitefield,30.0,2.0,Heavy Congestion,Old Madras Road bottle neck
+Richmond Circle,MG Road,Majestic,15.0,1.5,Moderate Delay,Central city signal queue
+Old Airport Road,Indiranagar,Marathahalli,20.0,1.7,Heavy Congestion,Narrow corridor
+Hebbal Flyover,Hebbal,Majestic,18.0,1.6,Heavy Congestion,Airport corridor inbound
+Sony World Junction,Koramangala,Indiranagar,12.0,1.3,Moderate Delay,100ft road evening jam
+Dairy Circle,Jayanagar,Bannerghatta Road,15.0,1.4,Moderate Delay,Dairy circle junction work
+Hosur Road Expressway,HSR Layout,Electronic City,10.0,1.2,Smooth,Toll gate delay only
+Yeshwanthpur Toll,Yeshwanthpur,Hebbal,8.0,1.1,Normal,Normal flow
+Outer Ring Road South,Jayanagar,Koramangala,14.0,1.4,Moderate Delay,Commercial hub rush
+Victoria Hospital Access Road,Majestic,Victoria Hospital,5.0,1.1,Light Traffic,Dedicated emergency lane
+Manipal Hospital Access,Indiranagar,Manipal Hospital,6.0,1.2,Light Traffic,Ambulance priority lane
+Cubbon Park Circle,MG Road,Cubbon Park Police Station,4.0,1.1,Light Traffic,Government circle
